@@ -1,0 +1,54 @@
+/ Define the Runge-Kutta method of order 4
+fn rk4(
+    n: usize,
+    t_initial: f64,
+    t_final: f64,
+    y_initial: f64,
+    f: &dyn Fn(f64, f64) -> f64,
+) -> (Vec<f64>, Vec<f64>) {
+    // Calculate the step size
+    let h = (t_final - t_initial) / (n as f64);
+
+    // Initialize vectors to store t and y values
+    let mut t_val = vec![t_initial];
+    let mut y_val = vec![y_initial];
+
+    // Iterate over the range
+    for _ in 0..n {
+        // Get the last values of t and y
+        let ti = *t_val.last().unwrap();
+        let yi = *y_val.last().unwrap();
+
+        // Calculate k1, k2, k3, k4
+        let k1 = h * f(yi, ti);
+        let k2 = h * f(yi + k1 / 2.0, ti + h / 2.0);
+        let k3 = h * f(yi + k2 / 2.0, ti + h / 2.0);
+        let k4 = h * f(yi + k3, ti + h);
+
+        // Calculate the next y value
+        let y_update = yi + (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0;
+
+        // Update t and y values
+        let t_update = ti + h;
+        t_val.push(t_update);
+        y_val.push(y_update);
+    }
+
+    // Return the vectors of t and y values
+    (t_val, y_val)
+}
+
+// Define the function f(y, t)
+fn f(y: f64, t: f64) -> f64 {
+    1.0 - t.powi(2) + y
+}
+
+fn main() {
+    // Call the rk4 function with the provided parameters
+    let (t_values, y_values) = rk4(10, 0.0, 2.0, 0.5, &f);
+
+    // Iterate over the results and print them
+    for (t, y) in t_values.iter().zip(y_values.iter()) {
+        println!("At t = {:.2}, y = {:.6}", t, y);
+    }
+}
