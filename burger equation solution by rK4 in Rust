@@ -1,0 +1,89 @@
+fn main() {
+    // Parameters
+    let nu = 0.1; // viscosity coefficient
+    let l = 10.0; // length of spatial domain
+    let n = 20; // number of grid points
+    let dx = l / (n - 1) as f64; // grid spacing
+    let dt = 0.1; // time step
+    let t_final = 2.0;
+
+    // Initial condition
+    let mut u = vec![0.0; n];
+    for (i, x) in (0..n).enumerate() {
+        u[i] = (f64::sin(std::f64::consts::PI * x as f64 * dx / l)).max(0.0); // Use half sine wave as initial condition
+    }
+
+    // Function representing the Burgers' equation
+    fn f(u: &[f64], nu: f64, dx: f64) -> Vec<f64> {
+        let mut du_dx = vec![0.0; u.len()]; // First derivative of u w.r.t. x
+        let mut d2u_dx2 = vec![0.0; u.len()]; // Second derivative of u w.r.t. x
+        let mut rhs = vec![0.0; u.len()];
+
+        // Calculate first derivative du/dx using central finite differences
+        for i in 1..(u.len() - 1) {
+            du_dx[i] = (u[i + 1] - u[i - 1]) / (2.0 * dx);
+        }
+
+        // Calculate second derivative d^2u/dx^2 using central finite differences
+        for i in 1..(u.len() - 1) {
+            d2u_dx2[i] = (u[i + 1] - 2.0 * u[i] + u[i - 1]) / (dx * dx);
+        }
+
+        // Compute the right-hand side of the Viscous Burgers' Equation
+        for i in 1..(u.len() - 1) {
+            rhs[i] = -u[i] * du_dx[i] + nu * d2u_dx2[i];
+        }
+
+        rhs
+    }
+
+    // RK4 method
+    let (t_vals, u_vals) = rk4(n, 0.0, t_final, &u, &f, nu, dx);
+
+    // Print the solution at each time step
+    for (t, u) in t_vals.iter().zip(u_vals.iter()) {
+        print!("At t = {:.2}, u = ", t);
+        for (i, &value) in u.iter().enumerate() {
+            if i < u.len() - 1 {
+                print!("{:.6} , ", value);
+            } else {
+                println!("{:.6}", value);
+            }
+        }
+    }
+}
+
+// RK4 method for solving differential equations
+fn rk4(n: usize, t_initial: f64, t_final: f64, u_initial: &[f64], f: &dyn Fn(&[f64], f64, f64) -> Vec<f64>, nu: f64, dx: f64) -> (Vec<f64>, Vec<Vec<f64>>) {
+    let h = (t_final - t_initial) / n as f64;
+    let mut t_val = vec![t_initial];
+    let mut u_val = vec![u_initial.to_vec()];
+
+    for _ in 0..n {
+        let yi = u_val.last().unwrap().clone();
+        let ti = *t_val.last().unwrap();
+
+        let k1 = scalar_multiply(h, &f(&yi, ti, dx));
+        let k2 = scalar_multiply(h, &f(&vec_add(&yi, &scalar_multiply(0.5, &k1)), ti + h / 2.0, dx));
+        let k3 = scalar_multiply(h, &f(&vec_add(&yi, &scalar_multiply(0.5, &k2)), ti + h / 2.0, dx));
+        let k4 = scalar_multiply(h, &f(&vec_add(&yi, &k3), ti + h, dx));
+
+        let y_update = vec_add(&yi, &scalar_multiply(1.0 / 6.0, &vec_add(&k1, &vec_add(&scalar_multiply(2.0, &k2), &vec_add(&scalar_multiply(2.0, &k3), &k4)))));
+        let t_update = ti + h;
+
+        t_val.push(t_update);
+        u_val.push(y_update);
+    }
+
+    (t_val, u_val)
+}
+
+// Helper function to multiply a scalar with a vector
+fn scalar_multiply(scalar: f64, vector: &[f64]) -> Vec<f64> {
+    vector.iter().map(|&x| scalar * x).collect()
+}
+
+// Helper function to add two vectors element-wise
+fn vec_add(vector1: &[f64], vector2: &[f64]) -> Vec<f64> {
+    vector1.iter().zip(vector2.iter()).map(|(&x, &y)| x + y).collect()
+}
